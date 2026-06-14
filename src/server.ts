@@ -1,8 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { JsonShortLinkRepository } from "./shortLinkRepository.js";
-import { getShortLinkByCode } from "./api/getShortLinkByCode.js";
-import { postShortLinks } from "./api/postShortLinks.js";
-import type { ApiErrorBody, ShortLinkRecord } from "./shortLinkTypes.js";
+import {
+  JsonShortLinkRepository,
+  getShortLinkByCode,
+  postShortLinks,
+  type ApiErrorBody,
+  type ShortLinkRecord,
+} from "./short-links/index.js";
 
 const DEFAULT_PORT = 3000;
 const MAX_BODY_BYTES = 1024 * 32;

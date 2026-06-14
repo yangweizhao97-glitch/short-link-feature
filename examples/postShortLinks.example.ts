@@ -1,4 +1,4 @@
-import { postShortLinks } from "../src/api/postShortLinks.js";
+import { postShortLinks } from "../src/short-links/handlers/createShortLink.js";
 
 async function main(): Promise<void> {
   const response = await postShortLinks(

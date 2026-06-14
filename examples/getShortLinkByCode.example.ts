@@ -1,6 +1,6 @@
-import { getShortLinkByCode } from "../src/api/getShortLinkByCode.js";
-import { postShortLinks } from "../src/api/postShortLinks.js";
-import { JsonShortLinkRepository } from "../src/shortLinkRepository.js";
+import { getShortLinkByCode } from "../src/short-links/handlers/redirectShortLink.js";
+import { postShortLinks } from "../src/short-links/handlers/createShortLink.js";
+import { JsonShortLinkRepository } from "../src/short-links/repositories/shortLinkRepository.js";
 
 const repository = new JsonShortLinkRepository();
 

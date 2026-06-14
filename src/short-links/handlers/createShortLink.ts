@@ -1,17 +1,17 @@
-import { generateShortCode } from "../generateShortCode.js";
+import { generateShortCode } from "../domain/generateShortCode.js";
 import {
   JsonShortLinkRepository,
   type ShortLinkRepository,
-} from "../shortLinkRepository.js";
+} from "../repositories/shortLinkRepository.js";
 import type {
   ApiErrorBody,
   ApiResponse,
   ShortLinkRecord,
-} from "../shortLinkTypes.js";
+} from "../domain/shortLinkTypes.js";
 import {
   UrlValidationError,
   validateShortLinkUrl,
-} from "../validateShortLinkUrl.js";
+} from "../domain/validateShortLinkUrl.js";
 
 export interface PostShortLinksRequest {
   method: string;

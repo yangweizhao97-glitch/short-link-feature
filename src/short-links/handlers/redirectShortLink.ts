@@ -1,12 +1,12 @@
 import {
   JsonShortLinkRepository,
   type ShortLinkRepository,
-} from "../shortLinkRepository.js";
+} from "../repositories/shortLinkRepository.js";
 import type {
   ApiErrorBody,
   ApiResponse,
   RedirectResponse,
-} from "../shortLinkTypes.js";
+} from "../domain/shortLinkTypes.js";
 
 export interface GetShortLinkByCodeRequest {
   method: string;

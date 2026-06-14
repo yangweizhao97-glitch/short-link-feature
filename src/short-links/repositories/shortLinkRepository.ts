@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { ShortLinkRecord } from "./shortLinkTypes.js";
+import type { ShortLinkRecord } from "../domain/shortLinkTypes.js";
 
 export interface CreateShortLinkRecordInput {
   originalUrl: string;
