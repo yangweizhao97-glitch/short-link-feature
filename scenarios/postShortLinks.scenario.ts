@@ -1,4 +1,4 @@
-import { postShortLinks } from "../src/short-links/handlers/createShortLink.js";
+import { postShortLinks } from "../src/short-links/index.js";
 
 async function main(): Promise<void> {
   const response = await postShortLinks(
@@ -13,8 +13,8 @@ async function main(): Promise<void> {
     },
   );
 
-  console.log(response.status);
-  console.log(response.body);
+  console.log("Status:", response.status);
+  console.log("Body:", response.body);
 }
 
 void main();

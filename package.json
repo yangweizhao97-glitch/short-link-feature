@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit false --outDir dist",
+    "scenario:full-flow": "npm run build && node dist/scenarios/fullFlow.scenario.js",
+    "scenario:short-code": "npm run build && node dist/scenarios/generateShortCode.scenario.js",
+    "scenario:validation-failures": "npm run build && node dist/scenarios/validationFailures.scenario.js",
     "start": "node dist/src/server.js",
+    "test": "npm run test:api",
+    "test:api": "npm run build && node --test dist/tests/api/*.js",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

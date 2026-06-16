@@ -1,6 +1,8 @@
-import { getShortLinkByCode } from "../src/short-links/handlers/redirectShortLink.js";
-import { postShortLinks } from "../src/short-links/handlers/createShortLink.js";
-import { JsonShortLinkRepository } from "../src/short-links/repositories/shortLinkRepository.js";
+import {
+  JsonShortLinkRepository,
+  getShortLinkByCode,
+  postShortLinks,
+} from "../src/short-links/index.js";
 
 const repository = new JsonShortLinkRepository();
 
@@ -19,7 +21,7 @@ async function main(): Promise<void> {
   );
 
   if (!("shortCode" in created.body)) {
-    console.log(created);
+    console.log("Create failed:", created);
     return;
   }
 
@@ -35,7 +37,7 @@ async function main(): Promise<void> {
     },
   );
 
-  console.log(response);
+  console.log("Redirect response:", response);
 }
 
 void main();

@@ -1,96 +1,105 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+import { pathToFileURL } from "node:url";
 import {
   JsonShortLinkRepository,
   getShortLinkByCode,
   postShortLinks,
   type ApiErrorBody,
   type ShortLinkRecord,
+  type ShortLinkRepository,
 } from "./short-links/index.js";
 
 const DEFAULT_PORT = 3000;
 const MAX_BODY_BYTES = 1024 * 32;
 
-const repository = new JsonShortLinkRepository();
+export interface ShortLinkServerOptions {
+  repository?: ShortLinkRepository;
+}
 
-const server = createServer(async (request, response) => {
-  try {
-    const url = new URL(request.url ?? "/", getRequestOrigin(request));
+export function createShortLinkServer(
+  options: ShortLinkServerOptions = {},
+): Server {
+  const repository = options.repository ?? new JsonShortLinkRepository();
 
-    if (request.method === "GET" && url.pathname === "/") {
-      writeHtml(response, 200, renderHomePage());
-      return;
-    }
+  return createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url ?? "/", getRequestOrigin(request));
 
-    if (request.method === "POST" && url.pathname === "/api/short-links") {
-      const body = await readJsonBody(request);
-      const result = await postShortLinks(
-        {
-          method: request.method,
-          body: asPostShortLinksBody(body),
-        },
-        {
-          repository,
-          shortLinkBaseUrl: getRequestOrigin(request),
-        },
-      );
-
-      writeJson(response, result.status, result.body);
-      return;
-    }
-
-    if (request.method === "GET" && url.pathname === "/health") {
-      writeJson(response, 200, { status: "ok" });
-      return;
-    }
-
-    if (request.method === "GET" && isShortCodePath(url.pathname)) {
-      const result = await getShortLinkByCode(
-        {
-          method: request.method,
-          params: {
-            code: decodeURIComponent(url.pathname.slice(1)),
-          },
-        },
-        {
-          repository,
-        },
-      );
-
-      if ("headers" in result) {
-        response.writeHead(result.status, result.headers);
-        response.end();
+      if (request.method === "GET" && url.pathname === "/") {
+        writeHtml(response, 200, renderHomePage());
         return;
       }
 
-      writeJson(response, result.status, result.body);
-      return;
-    }
+      if (request.method === "POST" && url.pathname === "/api/short-links") {
+        const body = await readJsonBody(request);
+        const result = await postShortLinks(
+          {
+            method: request.method,
+            body: asPostShortLinksBody(body),
+          },
+          {
+            repository,
+            shortLinkBaseUrl: getRequestOrigin(request),
+          },
+        );
 
-    writeJson(response, 404, {
-      code: "ROUTE_NOT_FOUND",
-      message: "Route was not found.",
-    });
-  } catch (error) {
-    if (error instanceof RequestBodyError) {
-      writeJson(response, error.status, {
-        code: error.code,
-        message: error.message,
+        writeJson(response, result.status, result.body);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/health") {
+        writeJson(response, 200, { status: "ok" });
+        return;
+      }
+
+      if (request.method === "GET" && isShortCodePath(url.pathname)) {
+        const result = await getShortLinkByCode(
+          {
+            method: request.method,
+            params: {
+              code: decodeURIComponent(url.pathname.slice(1)),
+            },
+          },
+          {
+            repository,
+          },
+        );
+
+        if ("headers" in result) {
+          response.writeHead(result.status, result.headers);
+          response.end();
+          return;
+        }
+
+        writeJson(response, result.status, result.body);
+        return;
+      }
+
+      writeJson(response, 404, {
+        code: "ROUTE_NOT_FOUND",
+        message: "Route was not found.",
       });
-      return;
+    } catch (error) {
+      if (error instanceof RequestBodyError) {
+        writeJson(response, error.status, {
+          code: error.code,
+          message: error.message,
+        });
+        return;
+      }
+
+      writeJson(response, 500, {
+        code: "INTERNAL_ERROR",
+        message: "Internal server error.",
+      });
     }
-
-    writeJson(response, 500, {
-      code: "INTERNAL_ERROR",
-      message: "Internal server error.",
-    });
-  }
-});
-
-const port = Number(process.env.PORT ?? DEFAULT_PORT);
-
-server.listen(port, () => {
-  console.log(`Short link service listening on http://localhost:${port}`);
-});
+  });
+}
 
 function getRequestOrigin(request: IncomingMessage): string {
   const host = request.headers.host ?? `localhost:${DEFAULT_PORT}`;
@@ -98,7 +107,7 @@ function getRequestOrigin(request: IncomingMessage): string {
 }
 
 function isShortCodePath(pathname: string): boolean {
-  return /^\/[A-Za-z0-9]+$/.test(pathname);
+  return /^\/[^/]+$/.test(pathname);
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<unknown> {
@@ -311,4 +320,20 @@ class RequestBodyError extends Error {
     super(message);
     this.name = "RequestBodyError";
   }
+}
+
+function shouldStartServer(): boolean {
+  return (
+    process.argv[1] !== undefined &&
+    import.meta.url === pathToFileURL(process.argv[1]).href
+  );
+}
+
+if (shouldStartServer()) {
+  const port = Number(process.env.PORT ?? DEFAULT_PORT);
+  const server = createShortLinkServer();
+
+  server.listen(port, () => {
+    console.log(`Short link service listening on http://localhost:${port}`);
+  });
 }
