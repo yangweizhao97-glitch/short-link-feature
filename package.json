@@ -5,16 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit false --outDir dist",
-    "scenario:full-flow": "npm run build && node dist/scenarios/fullFlow.scenario.js",
-    "scenario:short-code": "npm run build && node dist/scenarios/generateShortCode.scenario.js",
-    "scenario:validation-failures": "npm run build && node dist/scenarios/validationFailures.scenario.js",
     "start": "node dist/src/server.js",
     "test": "npm run test:api",
-    "test:api": "npm run build && node --test dist/tests/api/*.js",
+    "test:api": "vitest run tests/api",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "typescript": "^6.0.0-dev.20251122"
+    "typescript": "^6.0.0-dev.20251122",
+    "vitest": "^4.1.9"
   }
 }

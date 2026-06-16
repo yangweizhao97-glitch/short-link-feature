@@ -7,6 +7,7 @@ import type {
   ApiResponse,
   RedirectResponse,
 } from "../domain/shortLinkTypes.js";
+import { isValidShortCode } from "../domain/shortCode.js";
 
 export interface GetShortLinkByCodeRequest {
   method: string;
@@ -20,8 +21,6 @@ export interface GetShortLinkByCodeOptions {
   now?: Date;
 }
 
-const SHORT_CODE_PATTERN = /^[A-Za-z0-9]+$/;
-
 export async function getShortLinkByCode(
   request: GetShortLinkByCodeRequest,
   options: GetShortLinkByCodeOptions = {},
@@ -32,7 +31,7 @@ export async function getShortLinkByCode(
 
   const code = request.params.code;
 
-  if (typeof code !== "string" || !SHORT_CODE_PATTERN.test(code)) {
+  if (!isValidShortCode(code)) {
     return errorResponse(400, "INVALID_SHORT_CODE", "Short code is invalid.");
   }
 
@@ -41,6 +40,10 @@ export async function getShortLinkByCode(
 
   if (!record) {
     return errorResponse(404, "SHORT_LINK_NOT_FOUND", "Short link was not found.");
+  }
+
+  if (record.status === "disabled") {
+    return errorResponse(410, "SHORT_LINK_DISABLED", "Short link is disabled.");
   }
 
   const now = options.now ?? new Date();

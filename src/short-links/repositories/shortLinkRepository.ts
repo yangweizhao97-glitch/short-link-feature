@@ -19,6 +19,8 @@ export interface ShortLinkRepository {
 }
 
 export class JsonShortLinkRepository implements ShortLinkRepository {
+  private writeQueue = Promise.resolve();
+
   constructor(
     private readonly filePath = resolve(
       process.cwd(),
@@ -38,42 +40,46 @@ export class JsonShortLinkRepository implements ShortLinkRepository {
   }
 
   async incrementVisitCount(shortCode: string, now: string): Promise<void> {
-    const records = await this.readRecords();
-    const record = records.find((item) => item.shortCode === shortCode);
+    await this.withWriteLock(async () => {
+      const records = await this.readRecords();
+      const record = records.find((item) => item.shortCode === shortCode);
 
-    if (!record) {
-      return;
-    }
+      if (!record) {
+        return;
+      }
 
-    record.clickCount += 1;
-    record.updatedAt = now;
-    await this.writeRecords(records);
+      record.clickCount += 1;
+      record.updatedAt = now;
+      await this.writeRecords(records);
+    });
   }
 
   async create(input: CreateShortLinkRecordInput): Promise<ShortLinkRecord> {
-    const records = await this.readRecords();
+    return this.withWriteLock(async () => {
+      const records = await this.readRecords();
 
-    if (records.some((record) => record.shortCode === input.shortCode)) {
-      throw new Error("Short code already exists.");
-    }
+      if (records.some((record) => record.shortCode === input.shortCode)) {
+        throw new Error("Short code already exists.");
+      }
 
-    const record: ShortLinkRecord = {
-      id: randomUUID(),
-      originalUrl: input.originalUrl,
-      normalizedUrl: input.normalizedUrl,
-      shortCode: input.shortCode,
-      shortUrl: input.shortUrl,
-      status: "active",
-      clickCount: 0,
-      expiresAt: null,
-      createdAt: input.now,
-      updatedAt: input.now,
-    };
+      const record: ShortLinkRecord = {
+        id: randomUUID(),
+        originalUrl: input.originalUrl,
+        normalizedUrl: input.normalizedUrl,
+        shortCode: input.shortCode,
+        shortUrl: input.shortUrl,
+        status: "active",
+        clickCount: 0,
+        expiresAt: null,
+        createdAt: input.now,
+        updatedAt: input.now,
+      };
 
-    records.push(record);
-    await this.writeRecords(records);
+      records.push(record);
+      await this.writeRecords(records);
 
-    return record;
+      return record;
+    });
   }
 
   private async readRecords(): Promise<ShortLinkRecord[]> {
@@ -92,6 +98,15 @@ export class JsonShortLinkRepository implements ShortLinkRepository {
   private async writeRecords(records: ShortLinkRecord[]): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
     await writeFile(this.filePath, `${JSON.stringify(records, null, 2)}\n`);
+  }
+
+  private async withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.writeQueue.then(operation, operation);
+    this.writeQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 }
 

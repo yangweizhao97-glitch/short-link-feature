@@ -1,5 +1,11 @@
 export { generateShortCode } from "./domain/generateShortCode.js";
 export {
+  SHORT_CODE_ALPHABET,
+  SHORT_CODE_LENGTH,
+  SHORT_CODE_PATTERN,
+  isValidShortCode,
+} from "./domain/shortCode.js";
+export {
   UrlValidationError,
   validateShortLinkUrl,
 } from "./domain/validateShortLinkUrl.js";

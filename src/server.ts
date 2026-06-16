@@ -19,6 +19,7 @@ const MAX_BODY_BYTES = 1024 * 32;
 
 export interface ShortLinkServerOptions {
   repository?: ShortLinkRepository;
+  shortLinkBaseUrl?: string;
 }
 
 export function createShortLinkServer(
@@ -44,7 +45,7 @@ export function createShortLinkServer(
           },
           {
             repository,
-            shortLinkBaseUrl: getRequestOrigin(request),
+            shortLinkBaseUrl: options.shortLinkBaseUrl ?? getRequestOrigin(request),
           },
         );
 
@@ -286,12 +287,14 @@ function renderHomePage(): string {
             return;
           }
 
-          output.innerHTML =
-            JSON.stringify(data, null, 2)
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;") +
-            "\\n\\n打开短链接：<a href=\\"" + data.shortUrl + "\\" target=\\"_blank\\">" + data.shortUrl + "</a>";
+          output.textContent = JSON.stringify(data, null, 2) + "\\n\\n打开短链接：";
+
+          const link = document.createElement("a");
+          link.href = data.shortUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = data.shortUrl;
+          output.append(link);
         } catch (error) {
           output.textContent = error instanceof Error ? error.message : String(error);
         } finally {
@@ -331,7 +334,9 @@ function shouldStartServer(): boolean {
 
 if (shouldStartServer()) {
   const port = Number(process.env.PORT ?? DEFAULT_PORT);
-  const server = createShortLinkServer();
+  const server = createShortLinkServer({
+    shortLinkBaseUrl: process.env.PUBLIC_BASE_URL,
+  });
 
   server.listen(port, () => {
     console.log(`Short link service listening on http://localhost:${port}`);

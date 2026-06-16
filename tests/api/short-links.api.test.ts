@@ -1,8 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { strict as assert } from "node:assert";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { createShortLinkServer } from "../../src/server.js";
@@ -27,7 +26,8 @@ describe("short link HTTP API", () => {
     });
 
     const address = server.address();
-    assert(address !== null && typeof address !== "string");
+    expect(address).not.toBeNull();
+    expect(typeof address).not.toBe("string");
     baseUrl = `http://127.0.0.1:${(address as AddressInfo).port}`;
   });
 
@@ -50,8 +50,8 @@ describe("short link HTTP API", () => {
     const response = await fetch(`${baseUrl}/health`);
     const body = await response.json();
 
-    assert.equal(response.status, 200);
-    assert.deepEqual(body, { status: "ok" });
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ status: "ok" });
   });
 
   it("creates a short link and returns a shortUrl", async () => {
@@ -60,14 +60,14 @@ describe("short link HTTP API", () => {
     });
     const body = (await response.json()) as ShortLinkRecord;
 
-    assert.equal(response.status, 201);
-    assert.equal(body.originalUrl, "https://example.com/articles/api-test");
-    assert.match(body.shortCode, /^[A-Za-z0-9]{6}$/);
-    assert.equal(body.shortUrl, `${baseUrl}/${body.shortCode}`);
-    assert.equal(body.clickCount, 0);
+    expect(response.status).toBe(201);
+    expect(body.originalUrl).toBe("https://example.com/articles/api-test");
+    expect(body.shortCode).toMatch(/^[A-Za-z0-9]{6}$/);
+    expect(body.shortUrl).toBe(`${baseUrl}/${body.shortCode}`);
+    expect(body.clickCount).toBe(0);
 
     const saved = await repository.findByShortCode(body.shortCode);
-    assert.equal(saved?.originalUrl, "https://example.com/articles/api-test");
+    expect(saved?.originalUrl).toBe("https://example.com/articles/api-test");
   });
 
   it("rejects unsupported URL schemes", async () => {
@@ -76,8 +76,8 @@ describe("short link HTTP API", () => {
     });
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.deepEqual(body, {
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
       code: "UNSUPPORTED_URL_SCHEME",
       message: "URL scheme is not supported.",
     });
@@ -89,16 +89,38 @@ describe("short link HTTP API", () => {
     });
     const localhostBody = await localhostResponse.json();
 
-    assert.equal(localhostResponse.status, 400);
-    assert.equal(localhostBody.code, "URL_NOT_ALLOWED");
+    expect(localhostResponse.status).toBe(400);
+    expect(localhostBody.code).toBe("URL_NOT_ALLOWED");
 
     const privateIpResponse = await postJson(`${baseUrl}/api/short-links`, {
       url: "http://192.168.1.10/admin",
     });
     const privateIpBody = await privateIpResponse.json();
 
-    assert.equal(privateIpResponse.status, 400);
-    assert.equal(privateIpBody.code, "URL_NOT_ALLOWED");
+    expect(privateIpResponse.status).toBe(400);
+    expect(privateIpBody.code).toBe("URL_NOT_ALLOWED");
+  });
+
+  it("returns 400 when url is missing or invalid", async () => {
+    const missingUrlResponse = await postJson(`${baseUrl}/api/short-links`, {});
+    const missingUrlBody = await missingUrlResponse.json();
+
+    expect(missingUrlResponse.status).toBe(400);
+    expect(missingUrlBody).toEqual({
+      code: "URL_REQUIRED",
+      message: "URL is required.",
+    });
+
+    const invalidUrlResponse = await postJson(`${baseUrl}/api/short-links`, {
+      url: "not a url",
+    });
+    const invalidUrlBody = await invalidUrlResponse.json();
+
+    expect(invalidUrlResponse.status).toBe(400);
+    expect(invalidUrlBody).toEqual({
+      code: "INVALID_URL",
+      message: "URL is invalid.",
+    });
   });
 
   it("returns 400 for malformed JSON", async () => {
@@ -111,10 +133,27 @@ describe("short link HTTP API", () => {
     });
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.deepEqual(body, {
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
       code: "INVALID_JSON",
       message: "Request body is invalid JSON.",
+    });
+  });
+
+  it("returns 413 for oversized request bodies", async () => {
+    const response = await fetch(`${baseUrl}/api/short-links`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "x".repeat(1024 * 32 + 1),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body).toEqual({
+      code: "REQUEST_BODY_TOO_LARGE",
+      message: "Request body is too large.",
     });
   });
 
@@ -128,24 +167,23 @@ describe("short link HTTP API", () => {
       redirect: "manual",
     });
 
-    assert.equal(redirectResponse.status, 302);
-    assert.equal(
-      redirectResponse.headers.get("location"),
+    expect(redirectResponse.status).toBe(302);
+    expect(redirectResponse.headers.get("location")).toBe(
       "https://example.com/articles/redirect-target",
     );
 
     const saved = await repository.findByShortCode(created.shortCode);
-    assert.equal(saved?.clickCount, 1);
+    expect(saved?.clickCount).toBe(1);
   });
 
   it("returns 404 for a missing short code", async () => {
-    const response = await fetch(`${baseUrl}/notExist123`, {
+    const response = await fetch(`${baseUrl}/AbC123`, {
       redirect: "manual",
     });
     const body = await response.json();
 
-    assert.equal(response.status, 404);
-    assert.deepEqual(body, {
+    expect(response.status).toBe(404);
+    expect(body).toEqual({
       code: "SHORT_LINK_NOT_FOUND",
       message: "Short link was not found.",
     });
@@ -157,8 +195,19 @@ describe("short link HTTP API", () => {
     });
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.deepEqual(body, {
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      code: "INVALID_SHORT_CODE",
+      message: "Short code is invalid.",
+    });
+
+    const wrongLengthResponse = await fetch(`${baseUrl}/abcde`, {
+      redirect: "manual",
+    });
+    const wrongLengthBody = await wrongLengthResponse.json();
+
+    expect(wrongLengthResponse.status).toBe(400);
+    expect(wrongLengthBody).toEqual({
       code: "INVALID_SHORT_CODE",
       message: "Short code is invalid.",
     });
@@ -170,8 +219,8 @@ describe("short link HTTP API", () => {
         id: "expired-id",
         originalUrl: "https://example.com/expired",
         normalizedUrl: "https://example.com/expired",
-        shortCode: "expired1",
-        shortUrl: `${baseUrl}/expired1`,
+        shortCode: "exp123",
+        shortUrl: `${baseUrl}/exp123`,
         status: "active",
         clickCount: 0,
         expiresAt: "2020-01-01T00:00:00.000Z",
@@ -180,18 +229,48 @@ describe("short link HTTP API", () => {
       },
     ]);
 
-    const response = await fetch(`${baseUrl}/expired1`, {
+    const response = await fetch(`${baseUrl}/exp123`, {
       redirect: "manual",
     });
     const body = await response.json();
-    const saved = await repository.findByShortCode("expired1");
+    const saved = await repository.findByShortCode("exp123");
 
-    assert.equal(response.status, 410);
-    assert.deepEqual(body, {
+    expect(response.status).toBe(410);
+    expect(body).toEqual({
       code: "SHORT_LINK_EXPIRED",
       message: "Short link has expired.",
     });
-    assert.equal(saved?.clickCount, 0);
+    expect(saved?.clickCount).toBe(0);
+  });
+
+  it("returns 410 for a disabled short code", async () => {
+    await seedRecords([
+      {
+        id: "disabled-id",
+        originalUrl: "https://example.com/disabled",
+        normalizedUrl: "https://example.com/disabled",
+        shortCode: "dis123",
+        shortUrl: `${baseUrl}/dis123`,
+        status: "disabled",
+        clickCount: 0,
+        expiresAt: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+
+    const response = await fetch(`${baseUrl}/dis123`, {
+      redirect: "manual",
+    });
+    const body = await response.json();
+    const saved = await repository.findByShortCode("dis123");
+
+    expect(response.status).toBe(410);
+    expect(body).toEqual({
+      code: "SHORT_LINK_DISABLED",
+      message: "Short link is disabled.",
+    });
+    expect(saved?.clickCount).toBe(0);
   });
 
   async function seedRecords(records: ShortLinkRecord[]): Promise<void> {
